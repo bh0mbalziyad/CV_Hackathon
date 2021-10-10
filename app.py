@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, session
+from flask import Flask, render_template, request, session, redirect, url_for
 import pickle
 from jdExtraction import jdExtraction
 from resumeExtraction import ResumeExtraction
@@ -8,6 +8,8 @@ from werkzeug.utils import secure_filename
 from flask_pymongo import PyMongo
 from bson.objectid import ObjectId
 import sys, fitz
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import CountVectorizer
 
 def allowedExtension(filename):
     return '.' in filename and filename.rsplit('.',1)[1].lower() in ['docx','pdf']
@@ -34,11 +36,9 @@ def uploadJD():
     try:
         file = request.files['jd']
         filename = secure_filename(file.filename)
-        print("Extension:",file.filename.rsplit('.',1)[1].lower())
         if file and allowedExtension(file.filename):
              file.save(os.path.join(app.config['UPLOAD_FOLDER'],filename))
              fetchedData=jdextractorObj.extractorData("static/JD/"+filename,file.filename.rsplit('.',1)[1].lower())
-             print(fetchedData[0])
              result = None
              result1 = dbJD.insert_one({"Skills":list(fetchedData[0]),"Education":fetchedData[1],"JD_Data":fetchedData[2]}).inserted_id
              if result1 == None:
@@ -48,14 +48,44 @@ def uploadJD():
                 return render_template("StartFind.html",successMsg="Job Description Uploaded!!")
     except:
         print("Exception Occured")
+def matcher(job_desc,resume_text):
+    text=[resume_text,job_desc]
+    cv=CountVectorizer()
+    count_matrix=cv.fit_transform(text)
+    matchper=cosine_similarity(count_matrix)[0][1] * 100
+    return round(matchper,3)
+
+@app.route("/showCandidates")
+def showCandidates():
+    TopEmployeers=None
+    TopEmployeers=None
+    TopEmployeers=dbResume.find({"Total_Percentage":{"$gt":20}},{"Name":1,"Mobile_no":1,"Email":1,"Skills":1,"Skills_percentage":1,"Education":1,"Total_Percentage":1}).sort([("Total_Percentage",-1)])
+    if TopEmployeers == None:
+        return render_template("Show_top_matching.html",successMsg="No Candidate found")
+    else:
+        selectedResumes={}
+        cnt = 0
+        for i in TopEmployeers:
+            selectedResumes[cnt] = {"Name":i['Name'],"Email":i['Email'],"Mobile_no":i['Mobile_no'],"Skills":i['Skills'],"Skills_percentage":i['Skills_percentage'],"Education":i['Education'],"Total_Percentage":i['Total_Percentage']}
+            cnt += 1
+        return render_template("Show_top_matching.html",len = len(selectedResumes), data = selectedResumes,successMsg="Shortlisted Candidates")
 
 @app.route("/scanResume")
 def scanResume():
-    
-    data = resumeExtractionObj.extractorData('Resumes/Resume1.pdf',"pdf")
     se=dbJD.find_one({"_id":ObjectId(session['jd_id'])},{"Skills":1,"Education":1,"JD_Data":1})
-    
-    return "<h1>Hello</h1>"
+    entries = os.listdir('Resumes/')
+    for entry in entries:
+        try:
+            data = resumeExtractionObj.extractorData('Resumes/'+entry,"pdf")
+            da = round((len(list(set(se['Skills']).intersection(data[3])))/len(list(se['Skills'])))*100,3)
+            skills_percentage = round((da * 60 / 100),3)
+            resume_percentage = matcher(se['JD_Data'],data[5])
+            total = round((skills_percentage + (resume_percentage * 40) / 100),3)
+            result = None
+            result = dbResume.insert_one({"Name":data[0],"Mobile_no":data[1],"Email":data[2],"Skills":list(data[3]),"Skills_percentage":da,"Education":data[4],"JD_Percentage":resume_percentage,"Total_Percentage":total}).inserted_id
+        except:
+            continue
+    return redirect(url_for("showCandidates"))
 
 if __name__=="__main__":
     app.run(debug=True)

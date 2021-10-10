@@ -92,7 +92,6 @@ class jdExtraction:
             return found_skills
 
     def extractorData(self,file,ext): 
-            print("hello")
             text=""
             if ext=="docx": 
                 temp = docx2txt.process(file)
