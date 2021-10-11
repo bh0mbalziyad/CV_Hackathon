@@ -59,7 +59,7 @@ def matcher(job_desc,resume_text):
 def showCandidates():
     TopEmployeers=None
     TopEmployeers=None
-    TopEmployeers=dbResume.find({"Total_Percentage":{"$gt":20}},{"Name":1,"Mobile_no":1,"Email":1,"Skills":1,"Skills_percentage":1,"Education":1,"Total_Percentage":1}).sort([("Total_Percentage",-1)])
+    TopEmployeers=dbResume.find({"Total_Percentage":{"$gt":20},"JD_ID":{"$eq":session['jd_id']}},{"Name":1,"Mobile_no":1,"Email":1,"Skills":1,"Skills_percentage":1,"Education":1,"Total_Percentage":1}).sort([("Total_Percentage",-1)])
     if TopEmployeers == None:
         return render_template("Show_top_matching.html",successMsg="No Candidate found")
     else:
@@ -82,7 +82,7 @@ def scanResume():
             resume_percentage = matcher(se['JD_Data'],data[5])
             total = round((skills_percentage + (resume_percentage * 40) / 100),3)
             result = None
-            result = dbResume.insert_one({"Name":data[0],"Mobile_no":data[1],"Email":data[2],"Skills":list(data[3]),"Skills_percentage":da,"Education":data[4],"JD_Percentage":resume_percentage,"Total_Percentage":total}).inserted_id
+            result = dbResume.insert_one({"Name":data[0],"Mobile_no":data[1],"Email":data[2],"Skills":list(data[3]),"Skills_percentage":da,"Education":data[4],"JD_Percentage":resume_percentage,"Total_Percentage":total,"JD_ID":session['jd_id']}).inserted_id
         except:
             continue
     return redirect(url_for("showCandidates"))
