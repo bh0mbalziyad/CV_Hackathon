@@ -51,6 +51,7 @@ def uploadJD():
                 return render_template("StartFind.html", successMsg="Problem in Data Storage")
             else:
                 session['jd_id'] = str(result1)
+                print(str(result1))
                 return render_template("StartFind.html", successMsg="Job Description Uploaded!!")
     except Exception as e:
         print(e)
@@ -70,6 +71,7 @@ def showCandidates():
     TopEmployeers = None
     TopEmployeers = dbResume.find({"Total_Percentage": {"$gt": 20}, "JD_ID": {"$eq": session['jd_id']}}, {
                                   "Name": 1, "Mobile_no": 1, "Email": 1, "Skills": 1, "Skills_percentage": 1, "Education": 1, "Total_Percentage": 1}).sort([("Total_Percentage", -1)])
+    print(TopEmployeers[0])
     if TopEmployeers == None:
         return render_template("Show_top_matching.html", successMsg="No Candidate found")
     else:
@@ -84,7 +86,7 @@ def showCandidates():
 
 @app.route("/scanResume")
 def scanResume():
-    se = dbJD.find_one({"_id": ObjectId(session['jd_id'])}, {
+    se = dbJD.find_one({"_id": ObjectId("634d9004d76251cacda7b4f3")}, {
                        "Skills": 1, "Education": 1, "JD_Data": 1})
     entries = os.listdir('Resumes/')
     for entry in entries:
@@ -99,7 +101,8 @@ def scanResume():
             result = None
             result = dbResume.insert_one({"Name": data[0], "Mobile_no": data[1], "Email": data[2], "Skills": list(
                 data[3]), "Skills_percentage": da, "Education": data[4], "JD_Percentage": resume_percentage, "Total_Percentage": total, "JD_ID": session['jd_id']}).inserted_id
-        except:
+        except Exception as e:
+            print(e)
             continue
     return redirect(url_for("showCandidates"))
 
