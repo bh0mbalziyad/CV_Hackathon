@@ -7,6 +7,6 @@ install deps
 
 
 ```python
-python -m nltk.download punkt
-python -m nltk.download stopwords
+python -m nltk.downloader punkt
+python -m nltk.downloader stopwords
 ```
